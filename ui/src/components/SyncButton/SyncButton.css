@@ -1,0 +1,29 @@
+.sync-button-container {
+  margin: 0 1rem;
+}
+
+.sync-button-container button {
+  background-color: #1976d2;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.sync-button-container button:hover:not(:disabled) {
+  background-color: #1565c0;
+}
+
+.sync-button-container button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sync-button-container p {
+  margin-top: 0.5rem;
+  font-size: 13px;
+  color: #333;
+}

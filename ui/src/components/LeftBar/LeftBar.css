@@ -1,0 +1,43 @@
+.leftbar {
+  width: 200px;
+  padding: 16px;
+  border-right: 1px solid #ccc;
+  background-color: #f5f5f5;
+  height: 93vh;
+}
+
+.leftbar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.leftbar-list li {
+  margin-bottom: 12px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.categories-title {
+  font-weight: bold;
+}
+
+.leftbar-list li:not(.categories-title):hover {
+  background-color: #e0e0e0;
+}
+
+.leftbar-list li.active {
+  background-color: #1976d2;
+}
+
+.leftbar-list li.active a {
+  color: #fff;
+}
+
+.leftbar-list li a {
+  text-decoration: none;
+  color: #333;
+  display: block;
+}

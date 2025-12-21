@@ -1,0 +1,29 @@
+.app-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
+  font-family: "Roboto", sans-serif;
+}
+
+.admin-toggle {
+  background-color: #1976d2;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.admin-toggle:hover {
+  background-color: #1565c0;
+}
+
+.admin-toggle:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.4);
+}

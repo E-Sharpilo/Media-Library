@@ -12,7 +12,6 @@ type Props = {
 
 const VideosPage: React.FC<Props> = ({ categoryId }) => {
   const [videos, setVideos] = useState<Video[]>([]);
-  console.log("🚀 ~ VideosPage ~ videos:", videos);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -55,6 +54,7 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
   useEffect(() => {
     const id = setTimeout(() => loadVideos(true), 250);
     return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTags, categoryId]);
 
   // infinite scroll
@@ -70,6 +70,7 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
 
     observer.observe(observerRef.current);
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTags, categoryId]);
 
   return (

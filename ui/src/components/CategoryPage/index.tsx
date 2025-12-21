@@ -1,11 +1,11 @@
-import { Box, Button, CircularProgress, Grid } from "@mui/material";
+import { Box, CircularProgress, Grid, Pagination, Stack } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Video } from "../../types";
 import TagsFilter from "../TagsFilter";
 import VideoCard from "../VideoCard";
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 20;
 
 interface CategoryPageProps {
   favorite?: boolean;
@@ -19,41 +19,46 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
   const [page, setPage] = useState(1);
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
 
-  const loadVideos = useCallback(
-    async (pageNumber = 1) => {
-      setLoading(true);
-      const offset = (pageNumber - 1) * PAGE_SIZE;
-      const tagsQuery = selectedTags.length
-        ? `&tags=${selectedTags.join(",")}`
-        : "";
-      const favQuery = favorite ? `&favorite=1` : "";
-      const catQuery = !favorite && categoryId ? `&category=${categoryId}` : "";
-      const res = await fetch(
-        `/api/videos?limit=${PAGE_SIZE}&offset=${offset}${catQuery}${tagsQuery}${favQuery}`
-      );
-      const data = await res.json();
+  const loadVideos = useCallback(async () => {
+    setLoading(true);
 
-      setVideos(data.videos || data);
-      setTotalCount(data.totalCount || data.length + offset);
-      setLoading(false);
-    },
-    [categoryId, selectedTags, favorite]
-  );
+    const offset = (page - 1) * PAGE_SIZE;
+    const tagsQuery = selectedTags.length
+      ? `&tags=${selectedTags.join(",")}`
+      : "";
+    const favQuery = favorite ? `&favorite=1` : "";
+    const catQuery = !favorite && categoryId ? `&category=${categoryId}` : "";
+
+    const res = await fetch(
+      `/api/videos?limit=${PAGE_SIZE}&offset=${offset}${catQuery}${tagsQuery}${favQuery}`
+    );
+
+    const data = await res.json();
+
+    setVideos(data);
+
+    const isLastPage = data.length < PAGE_SIZE;
+    setTotalCount(
+      isLastPage ? (page - 1) * PAGE_SIZE + data.length : page * PAGE_SIZE + 1
+    );
+    setLoading(false);
+  }, [page, selectedTags, categoryId, favorite]);
 
   useEffect(() => {
-    setPage(1);
-    loadVideos(1);
-  }, [categoryId, selectedTags, favorite, loadVideos]);
-
-  useEffect(() => {
-    if (page > 1) loadVideos(page);
-  }, [page, loadVideos]);
+    loadVideos();
+  }, [loadVideos]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
     <div>
-      <TagsFilter selectedTags={selectedTags} onChange={setSelectedTags} />
+      <TagsFilter
+        selectedTags={selectedTags}
+        onChange={(tags) => {
+          setPage(1);
+          setSelectedTags(tags);
+        }}
+      />
 
       <Grid
         container
@@ -77,43 +82,21 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
       </Grid>
 
       {loading && (
-        <Box sx={{ display: "flex", justifyContent: "center", padding: 2 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
           <CircularProgress />
         </Box>
       )}
 
       {totalPages > 1 && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 1,
-            mt: 2,
-            position: "sticky",
-            bottom: 0,
-            backgroundColor: "white",
-            py: 1,
-            zIndex: 10,
-          }}
-        >
-          <Button
-            variant="outlined"
-            disabled={page === 1 || loading}
-            onClick={() => setPage((prev) => prev - 1)}
-          >
-            Prev
-          </Button>
-          <Box sx={{ display: "flex", alignItems: "center", px: 1 }}>
-            {page} / {totalPages}
-          </Box>
-          <Button
-            variant="outlined"
-            disabled={page === totalPages || loading}
-            onClick={() => setPage((prev) => prev + 1)}
-          >
-            Next
-          </Button>
-        </Box>
+        <Stack alignItems="center" mt={4}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            siblingCount={0}
+            boundaryCount={2}
+          />
+        </Stack>
       )}
     </div>
   );

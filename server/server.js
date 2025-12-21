@@ -1,5 +1,6 @@
 const express = require("express");
 const config = require("./config");
+const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -13,6 +14,14 @@ app.use("/api/categories", require("./routes/categories"));
 
 app.use("/actors_photos", express.static("actors_photos"));
 app.use("/thumbnails", express.static("thumbnails"));
+
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api")) {
+    res.sendFile(path.join(config.UI_PATH, "index.html"));
+  } else {
+    next();
+  }
+});
 
 const PORT = 4000;
 app.listen(PORT, () =>

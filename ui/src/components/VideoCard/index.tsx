@@ -44,7 +44,7 @@ const VideoCard: React.FC<Props> = ({ video }) => {
   };
 
   return (
-    <Card sx={{ width: "100%", position: "relative" }}>
+    <Card sx={{ width: "100%", minWidth: 0, position: "relative" }}>
       <CardActionArea onClick={() => navigate(`/videos/${video.id}`)}>
         <CardMedia
           component="img"
@@ -61,9 +61,10 @@ const VideoCard: React.FC<Props> = ({ video }) => {
             height: 40,
             display: "flex",
             alignItems: "center",
+            minWidth: 0,
           }}
         >
-          <Typography variant="body2" noWrap>
+          <Typography variant="body2" noWrap sx={{ minWidth: 0, width: "100%" }}>
             {video.title}
           </Typography>
         </CardContent>

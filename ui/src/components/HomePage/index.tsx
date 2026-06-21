@@ -1,4 +1,4 @@
-import { CircularProgress, Grid } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import React, { useEffect, useRef, useState } from "react";
 import { Video } from "../../types";
 import TagsFilter from "../TagsFilter";
@@ -77,11 +77,10 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
     <>
       <TagsFilter selectedTags={selectedTags} onChange={setSelectedTags} />
 
-      <Grid
-        container
-        spacing={2}
+      <Box
         sx={{
           display: "grid",
+          gap: 2,
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
@@ -89,6 +88,7 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
             lg: "repeat(4, 1fr)",
             xl: "repeat(5, 1fr)",
           },
+          "& > *": { minWidth: 0 },
         }}
       >
         {videos.map((video, index) => {
@@ -99,7 +99,7 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
             </div>
           );
         })}
-      </Grid>
+      </Box>
 
       {hasMore && (
         <div

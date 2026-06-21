@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, Pagination, Stack } from "@mui/material";
+import { Box, CircularProgress, Pagination, Stack } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Video } from "../../types";
@@ -60,11 +60,10 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
         }}
       />
 
-      <Grid
-        container
-        spacing={2}
+      <Box
         sx={{
           display: "grid",
+          gap: 2,
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, 1fr)",
@@ -72,6 +71,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
             lg: "repeat(4, 1fr)",
             xl: "repeat(5, 1fr)",
           },
+          "& > *": { minWidth: 0 },
         }}
       >
         {videos.map((video) => (
@@ -79,7 +79,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
             <VideoCard video={video} />
           </div>
         ))}
-      </Grid>
+      </Box>
 
       {loading && (
         <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>

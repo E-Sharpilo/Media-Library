@@ -1,6 +1,12 @@
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Box, Button, Menu } from "@mui/material";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { Tag } from "../../types";
 
 type Props = {
@@ -9,7 +15,7 @@ type Props = {
 };
 
 const GAP = 8;
-const MORE_BUTTON_RESERVED_WIDTH = 80;
+const RIGHT_SAFE_AREA = 36;
 
 const TagsFilter: React.FC<Props> = ({ selectedTags, onChange }) => {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -18,6 +24,14 @@ const TagsFilter: React.FC<Props> = ({ selectedTags, onChange }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const moreMeasureRef = useRef<HTMLButtonElement>(null);
+
+  const buttonSx = {
+    minWidth: "auto",
+    flexShrink: 0,
+    whiteSpace: "nowrap",
+    px: 1.25,
+  } as const;
 
   useEffect(() => {
     fetch("/api/tags")
@@ -34,23 +48,53 @@ const TagsFilter: React.FC<Props> = ({ selectedTags, onChange }) => {
     );
   };
 
-  useLayoutEffect(() => {
+  const updateVisibleTags = useCallback(() => {
     if (!containerRef.current || !measureRef.current) return;
 
-    const containerWidth = containerRef.current.offsetWidth;
-    const buttons = Array.from(measureRef.current.children) as HTMLElement[];
+    const containerWidth = Math.max(
+      0,
+      containerRef.current.clientWidth - RIGHT_SAFE_AREA
+    );
+    const buttons = Array.from(measureRef.current.children).slice(
+      0,
+      tags.length
+    ) as HTMLElement[];
+    const moreButtonWidth = moreMeasureRef.current?.offsetWidth || 96;
 
-    let usedWidth = 0;
-    let count = 0;
+    const getFitCount = (availableWidth: number) => {
+      let usedWidth = 0;
+      let count = 0;
 
-    for (const btn of buttons) {
-      usedWidth += btn.offsetWidth + GAP;
-      if (usedWidth > containerWidth - MORE_BUTTON_RESERVED_WIDTH) break;
-      count++;
-    }
+      for (const btn of buttons) {
+        const nextWidth = usedWidth + btn.offsetWidth + (count > 0 ? GAP : 0);
+        if (nextWidth > availableWidth) break;
 
-    setVisibleCount(count);
-  }, [tags]);
+        usedWidth = nextWidth;
+        count++;
+      }
+
+      return count;
+    };
+
+    const countWithoutMore = getFitCount(containerWidth);
+
+    setVisibleCount(
+      countWithoutMore >= tags.length
+        ? tags.length
+        : getFitCount(containerWidth - moreButtonWidth - GAP)
+    );
+  }, [tags.length]);
+
+  useLayoutEffect(() => {
+    updateVisibleTags();
+
+    if (!containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver(updateVisibleTags);
+    resizeObserver.observe(containerRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, [tags, updateVisibleTags]);
 
   return (
     <>
@@ -65,26 +109,38 @@ const TagsFilter: React.FC<Props> = ({ selectedTags, onChange }) => {
         }}
       >
         {tags.map((tag) => (
-          <Button key={tag.id} size="small">
+          <Button key={tag.id} size="small" sx={buttonSx}>
             {tag.name}
           </Button>
         ))}
+        <Button
+          ref={moreMeasureRef}
+          size="small"
+          sx={buttonSx}
+          endIcon={<ExpandMoreIcon />}
+        >
+          More
+        </Button>
       </div>
 
       <div
         ref={containerRef}
         style={{
           display: "flex",
+          alignItems: "center",
           gap: GAP,
           width: "100%",
+          paddingRight: RIGHT_SAFE_AREA,
+          height: 36,
           overflow: "hidden",
-          paddingBottom: 10,
+          marginBottom: 10,
         }}
       >
         {tags.slice(0, visibleCount).map((tag) => (
           <Button
             key={tag.id}
             size="small"
+            sx={buttonSx}
             variant={selectedTags.includes(tag.id) ? "contained" : "outlined"}
             onClick={() => toggleTag(tag.id)}
           >
@@ -96,6 +152,7 @@ const TagsFilter: React.FC<Props> = ({ selectedTags, onChange }) => {
           <>
             <Button
               size="small"
+              sx={buttonSx}
               endIcon={<ExpandMoreIcon />}
               onClick={(e) => setAnchorEl(e.currentTarget)}
             >
@@ -116,12 +173,15 @@ const TagsFilter: React.FC<Props> = ({ selectedTags, onChange }) => {
                   gap: 1,
                   p: 1,
                   maxWidth: 320,
+                  maxHeight: "50vh",
+                  overflowY: "auto",
                 }}
               >
                 {tags.slice(visibleCount).map((tag) => (
                   <Button
                     key={tag.id}
                     size="small"
+                    sx={buttonSx}
                     variant={
                       selectedTags.includes(tag.id) ? "contained" : "outlined"
                     }

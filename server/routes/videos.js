@@ -18,6 +18,28 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+const VIDEO_EXTENSIONS = [
+  ".avi",
+  ".m4v",
+  ".mkv",
+  ".mov",
+  ".mp4",
+  ".mpeg",
+  ".mpg",
+  ".ts",
+  ".webm",
+  ".wmv",
+];
+
+const videoExtensionWhereSql = VIDEO_EXTENSIONS.map(
+  () => "LOWER(v.path) LIKE ?"
+).join(" OR ");
+
+const videoExtensionParams = VIDEO_EXTENSIONS.map((ext) => `%${ext}`);
+const pathVideoExtensionWhereSql = VIDEO_EXTENSIONS.map(
+  () => "LOWER(path) LIKE ?"
+).join(" OR ");
+
 
 // query params: ?limit=30&offset=0&category=2&tags=1,5,7
 router.get("/", (req, res) => {
@@ -99,6 +121,22 @@ router.get("/", (req, res) => {
 
 // return video that should be added
 router.get("/new", (req, res) => {
+  db.run(
+    `
+    DELETE FROM videos
+    WHERE saved = 0
+      AND NOT (${pathVideoExtensionWhereSql})
+    `,
+    videoExtensionParams,
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      loadNewVideos(res);
+    }
+  );
+});
+
+const loadNewVideos = (res) => {
   const sql = `
     SELECT
       v.*,
@@ -115,9 +153,10 @@ router.get("/new", (req, res) => {
     FROM videos v
     LEFT JOIN categories c ON c.id = v.category_id
     WHERE v.saved = 0
+      AND (${videoExtensionWhereSql})
   `;
 
-  db.all(sql, [], (err, rows) => {
+  db.all(sql, videoExtensionParams, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
     res.json(
@@ -128,7 +167,7 @@ router.get("/new", (req, res) => {
       }))
     );
   });
-});
+};
 
 // GET /api/videos/random?limit=50&offset=0
 router.get("/random", (req, res) => {

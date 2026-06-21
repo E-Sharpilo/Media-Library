@@ -1,19 +1,22 @@
+import AddIcon from "@mui/icons-material/Add";
+import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  Chip,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
+  InputAdornment,
+  Paper,
+  Stack,
   TextField,
+  Tooltip,
+  Typography,
 } from "@mui/material";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type Tag = {
   id: number;
@@ -22,8 +25,10 @@ type Tag = {
 
 const TagsPage: React.FC = () => {
   const [tags, setTags] = useState<Tag[]>([]);
-  const [editTag, setEditTag] = useState<Tag | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
   const [newTagName, setNewTagName] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchTags = () => {
     fetch("/api/tags")
@@ -36,12 +41,20 @@ const TagsPage: React.FC = () => {
     fetchTags();
   }, []);
 
+  const filteredTags = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return tags;
+    return tags.filter((tag) => tag.name.toLowerCase().includes(term));
+  }, [searchTerm, tags]);
+
   const handleAdd = () => {
-    if (!newTagName.trim()) return;
+    const name = newTagName.trim();
+    if (!name) return;
+
     fetch("/api/tags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newTagName }),
+      body: JSON.stringify({ name }),
     })
       .then((res) => res.json())
       .then(() => {
@@ -50,14 +63,27 @@ const TagsPage: React.FC = () => {
       });
   };
 
+  const startEdit = (tag: Tag) => {
+    setEditingId(tag.id);
+    setEditingName(tag.name);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingName("");
+  };
+
   const handleEditSave = () => {
-    if (!editTag) return;
-    fetch(`/api/tags/${editTag.id}`, {
+    if (!editingId) return;
+    const name = editingName.trim();
+    if (!name) return;
+
+    fetch(`/api/tags/${editingId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editTag.name }),
+      body: JSON.stringify({ name }),
     }).then(() => {
-      setEditTag(null);
+      cancelEdit();
       fetchTags();
     });
   };
@@ -67,57 +93,167 @@ const TagsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <h2>Tags</h2>
+    <Box sx={{ p: 2, maxWidth: 980 }}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1.5}
+        alignItems={{ xs: "stretch", sm: "center" }}
+        justifyContent="space-between"
+        sx={{ mb: 2 }}
+      >
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            Tags
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {tags.length} total
+          </Typography>
+        </Box>
 
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
         <TextField
-          label="New Tag"
-          value={newTagName}
-          onChange={(e) => setNewTagName(e.target.value)}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search tags"
           size="small"
+          sx={{ width: { xs: "100%", sm: 280 } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
         />
-        <Button variant="contained" color="primary" onClick={handleAdd}>
-          Add Tag
-        </Button>
-      </div>
+      </Stack>
 
-      <List>
-        {tags.map((tag) => (
-          <ListItem key={tag.id} divider>
-            <ListItemText primary={tag.name} />
-            <Box ml="auto">
-              <IconButton onClick={() => setEditTag(tag)}>
-                <EditIcon />
-              </IconButton>
-              <IconButton onClick={() => handleDelete(tag.id)}>
-                <DeleteIcon />
-              </IconButton>
-            </Box>
-          </ListItem>
-        ))}
-      </List>
-
-      <Dialog open={!!editTag} onClose={() => setEditTag(null)}>
-        <DialogTitle>Edit Tag</DialogTitle>
-        <DialogContent>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 1,
+          mb: 2,
+          borderRadius: 1,
+          backgroundColor: "#fafafa",
+        }}
+      >
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
           <TextField
-            label="Tag Name"
-            value={editTag?.name || ""}
-            onChange={(e) =>
-              setEditTag((prev) => prev && { ...prev, name: e.target.value })
-            }
+            label="New tag"
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+            }}
+            size="small"
             fullWidth
           />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditTag(null)}>Cancel</Button>
-          <Button onClick={handleEditSave} variant="contained" color="primary">
-            Save
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAdd}
+            sx={{ flexShrink: 0 }}
+          >
+            Add
           </Button>
-        </DialogActions>
-      </Dialog>
-    </div>
+        </Stack>
+      </Paper>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, minmax(0, 1fr))",
+            lg: "repeat(3, minmax(0, 1fr))",
+          },
+          gap: 1,
+        }}
+      >
+        {filteredTags.map((tag) => {
+          const isEditing = editingId === tag.id;
+
+          return (
+            <Paper
+              key={tag.id}
+              variant="outlined"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                minWidth: 0,
+                p: 1,
+                borderRadius: 1,
+                transition: "border-color 0.15s ease, background-color 0.15s ease",
+                "&:hover": {
+                  borderColor: "primary.light",
+                  backgroundColor: "#fbfdff",
+                },
+              }}
+            >
+              {isEditing ? (
+                <TextField
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleEditSave();
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  size="small"
+                  autoFocus
+                  fullWidth
+                />
+              ) : (
+                <Chip
+                  label={tag.name}
+                  variant="outlined"
+                  sx={{
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    "& .MuiChip-label": {
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    },
+                  }}
+                />
+              )}
+
+              <Stack direction="row" spacing={0.25} sx={{ ml: "auto" }}>
+                {isEditing ? (
+                  <>
+                    <Tooltip title="Save">
+                      <IconButton size="small" color="success" onClick={handleEditSave}>
+                        <CheckIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Cancel">
+                      <IconButton size="small" onClick={cancelEdit}>
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                ) : (
+                  <>
+                    <Tooltip title="Edit">
+                      <IconButton size="small" onClick={() => startEdit(tag)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDelete(tag.id)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
+              </Stack>
+            </Paper>
+          );
+        })}
+      </Box>
+    </Box>
   );
 };
 

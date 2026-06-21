@@ -4,6 +4,22 @@ import { toast } from "react-toastify";
 import { Actor, Tag, Video } from "../../types";
 import NewVideoCard from "../NewVideoCard";
 
+const VIDEO_EXTENSIONS = [
+  ".avi",
+  ".m4v",
+  ".mkv",
+  ".mov",
+  ".mp4",
+  ".mpeg",
+  ".mpg",
+  ".ts",
+  ".webm",
+  ".wmv",
+];
+
+const isVideoPath = (path: string) =>
+  VIDEO_EXTENSIONS.some((extension) => path.toLowerCase().endsWith(extension));
+
 const NewVideosPage: React.FC = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [actors, setActors] = useState<Actor[]>([]);
@@ -12,7 +28,9 @@ const NewVideosPage: React.FC = () => {
   useEffect(() => {
     fetch("/api/videos/new")
       .then((res) => res.json())
-      .then(setVideos);
+      .then((data: Video[]) =>
+        setVideos(data.filter((video) => isVideoPath(video.path)))
+      );
 
     fetch("/api/actors")
       .then((res) => res.json())

@@ -6,6 +6,22 @@ const config = require("../config");
 
 const router = express.Router();
 
+const VIDEO_EXTENSIONS = new Set([
+  ".avi",
+  ".m4v",
+  ".mkv",
+  ".mov",
+  ".mp4",
+  ".mpeg",
+  ".mpg",
+  ".ts",
+  ".webm",
+  ".wmv",
+]);
+
+const isVideoFile = (filePath) =>
+  VIDEO_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+
 async function syncVideos() {
   const folders = fs.readdirSync(config.VIDEOS_PATH);
 
@@ -38,6 +54,10 @@ async function syncVideos() {
           const files = fs.readdirSync(folderPath);
           files.forEach((file) => {
             const fullPath = path.join(folderPath, file);
+            if (!fs.statSync(fullPath).isFile() || !isVideoFile(fullPath)) {
+              return;
+            }
+
             const relPath = path.join(folder, file);
 
             db.get(
@@ -62,7 +82,7 @@ async function syncVideos() {
   db.all("SELECT id, path FROM videos", [], (err, rows) => {
     rows.forEach((row) => {
       const fullPath = path.join(config.VIDEOS_PATH, row.path);
-      if (!fs.existsSync(fullPath)) {
+      if (!fs.existsSync(fullPath) || !isVideoFile(fullPath)) {
         db.run("DELETE FROM videos WHERE id=?", [row.id]);
       }
     });

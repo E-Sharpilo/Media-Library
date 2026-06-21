@@ -4,7 +4,7 @@ const router = express.Router();
 
 
 router.get("/", (req, res) => {
-  db.all("SELECT * FROM tags", [], (err, rows) => {
+  db.all("SELECT * FROM tags ORDER BY name COLLATE NOCASE", [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(rows);
   });

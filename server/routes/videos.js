@@ -374,6 +374,32 @@ router.post("/:id/favorite", (req, res) => {
   );
 });
 
+router.delete("/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.get("SELECT thumbnail FROM videos WHERE id=?", [id], (err, video) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!video) return res.status(404).json({ error: "Video not found" });
+
+    db.serialize(() => {
+      db.run("DELETE FROM video_tags WHERE video_id=?", [id]);
+      db.run("DELETE FROM video_actors WHERE video_id=?", [id]);
+      db.run("DELETE FROM videos WHERE id=?", [id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+
+        if (video.thumbnail) {
+          const thumbnailPath = path.join(config.THUMBNAILS_PATH, video.thumbnail);
+          if (fs.existsSync(thumbnailPath)) {
+            fs.unlinkSync(thumbnailPath);
+          }
+        }
+
+        res.json({ deleted: this.changes });
+      });
+    });
+  });
+});
+
 router.get("/:id", (req, res) => {
   const { id } = req.params;
 

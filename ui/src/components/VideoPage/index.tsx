@@ -11,12 +11,13 @@ import {
   Typography,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Actor, Tag, Video } from "../../types";
 import ActorPicker, { ActorChip } from "../ActorPicker";
 
 const VideoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [video, setVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -91,6 +92,20 @@ const VideoPage: React.FC = () => {
 
   const handlePlay = async () => {
     await fetch(`/api/videos/play/${id}`);
+  };
+
+  const handleDelete = async () => {
+    if (!video) return;
+
+    const confirmed = window.confirm(
+      "Delete this video from the library? The original file on disk will not be removed."
+    );
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/videos/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      navigate(-1);
+    }
   };
 
   const addActor = async (actorId: number) => {
@@ -323,9 +338,14 @@ const VideoPage: React.FC = () => {
 
           {!editMode && (
             <Box sx={{ mt: 2 }}>
-              <Button variant="outlined" onClick={() => setEditMode(true)}>
-                Edit Info
-              </Button>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Button variant="outlined" onClick={() => setEditMode(true)}>
+                  Edit Info
+                </Button>
+                <Button variant="outlined" color="error" onClick={handleDelete}>
+                  Delete
+                </Button>
+              </Box>
             </Box>
           )}
         </Box>

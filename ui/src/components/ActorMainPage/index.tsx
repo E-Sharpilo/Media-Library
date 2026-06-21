@@ -1,17 +1,19 @@
 import { Grid, Pagination, Stack } from "@mui/material";
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Actor, Video } from "../../types";
+import { getPageFromSearch } from "../../utils";
 import VideoCard from "../VideoCard";
 import "./ActorMainPage.css";
 
-const ITEMS_PER_PAGE = 12; // 3 rows x 4 cards
+const ITEMS_PER_PAGE = 12;
 
 const ActorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [actor, setActor] = useState<Actor | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => getPageFromSearch(searchParams));
 
   useEffect(() => {
     fetch(`/api/actors/${id}`)
@@ -19,11 +21,22 @@ const ActorPage: React.FC = () => {
       .then((res) => {
         setActor(res.actor);
         setVideos(res.videos);
-        setPage(1); // скидаємо сторінку при зміні актора
       });
   }, [id]);
 
+  useEffect(() => {
+    setPage(getPageFromSearch(searchParams));
+  }, [searchParams]);
+
   const pageCount = Math.ceil(videos.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (pageCount > 0 && page > pageCount) {
+      const nextPage = pageCount;
+      setPage(nextPage);
+      setSearchParams(nextPage > 1 ? { page: String(nextPage) } : {});
+    }
+  }, [page, pageCount, setSearchParams]);
 
   const paginatedVideos = useMemo(() => {
     const start = (page - 1) * ITEMS_PER_PAGE;
@@ -39,6 +52,10 @@ const ActorPage: React.FC = () => {
           className="actor-photo"
           src={`/actors_photos/${actor.photo}`}
           alt={actor.name}
+          width={360}
+          height={520}
+          loading="eager"
+          decoding="async"
         />
         <div className="actor-info">
           <h2>{actor.name}</h2>
@@ -62,7 +79,10 @@ const ActorPage: React.FC = () => {
             <Pagination
               count={pageCount}
               page={page}
-              onChange={(_, value) => setPage(value)}
+              onChange={(_, value) => {
+                setPage(value);
+                setSearchParams(value > 1 ? { page: String(value) } : {});
+              }}
               color="primary"
               shape="rounded"
             />

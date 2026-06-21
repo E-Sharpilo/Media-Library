@@ -12,8 +12,21 @@ app.use("/api/actors", require("./routes/actors"));
 app.use("/api/sync", require("./routes/sync"));
 app.use("/api/categories", require("./routes/categories"));
 
-app.use("/actors_photos", express.static("actors_photos"));
-app.use("/thumbnails", express.static("thumbnails"));
+const staticImageOptions = {
+  maxAge: "30d",
+  immutable: true,
+  etag: true,
+  lastModified: true,
+};
+
+app.use(
+  "/actors_photos",
+  express.static(config.ACTORS_PHOTOS_PATH, staticImageOptions)
+);
+app.use(
+  "/thumbnails",
+  express.static(config.THUMBNAILS_PATH, staticImageOptions)
+);
 
 app.use((req, res, next) => {
   if (!req.path.startsWith("/api")) {

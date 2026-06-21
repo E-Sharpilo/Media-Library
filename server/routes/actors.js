@@ -18,9 +18,39 @@ const upload = multer({ storage });
 
 // get actors
 router.get("/", (req, res) => {
-  db.all("SELECT * FROM actors", [], (err, rows) => {
+  const { limit, offset = 0, search = "" } = req.query;
+
+  if (!limit && !offset && !search) {
+    db.all("SELECT * FROM actors ORDER BY name COLLATE NOCASE", [], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      return res.json(rows);
+    });
+    return;
+  }
+
+  const parsedLimit = Math.max(1, Math.min(Number(limit) || 24, 100));
+  const parsedOffset = Math.max(0, Number(offset) || 0);
+  const searchValue = `%${String(search).trim()}%`;
+  const whereSql = search ? "WHERE name LIKE ?" : "";
+  const whereParams = search ? [searchValue] : [];
+
+  db.get(`SELECT COUNT(*) AS total FROM actors ${whereSql}`, whereParams, (err, countRow) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+
+    db.all(
+      `
+      SELECT *
+      FROM actors
+      ${whereSql}
+      ORDER BY name COLLATE NOCASE
+      LIMIT ? OFFSET ?
+      `,
+      [...whereParams, parsedLimit, parsedOffset],
+      (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ actors: rows, total: countRow.total });
+      }
+    );
   });
 });
 

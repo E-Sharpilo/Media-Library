@@ -1,7 +1,8 @@
 import { Box, CircularProgress, Pagination, Stack } from "@mui/material";
 import React, { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Video } from "../../types";
+import { getPageFromSearch, getTagsFromSearch } from "../../utils";
 import TagsFilter from "../TagsFilter";
 import VideoCard from "../VideoCard";
 
@@ -13,11 +14,40 @@ interface CategoryPageProps {
 
 const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
   const { id: categoryId } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  const [page, setPage] = useState(1);
-  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [page, setPage] = useState(() => getPageFromSearch(searchParams));
+  const [selectedTags, setSelectedTags] = useState<number[]>(() =>
+    getTagsFromSearch(searchParams)
+  );
+
+  const updateSearch = useCallback(
+    (nextPage: number, nextTags: number[]) => {
+      const nextSearchParams = new URLSearchParams(searchParams);
+
+      if (nextPage > 1) {
+        nextSearchParams.set("page", String(nextPage));
+      } else {
+        nextSearchParams.delete("page");
+      }
+
+      if (nextTags.length > 0) {
+        nextSearchParams.set("tags", nextTags.join(","));
+      } else {
+        nextSearchParams.delete("tags");
+      }
+
+      setSearchParams(nextSearchParams);
+    },
+    [searchParams, setSearchParams]
+  );
+
+  useEffect(() => {
+    setPage(getPageFromSearch(searchParams));
+    setSelectedTags(getTagsFromSearch(searchParams));
+  }, [searchParams]);
 
   const loadVideos = useCallback(async () => {
     setLoading(true);
@@ -30,17 +60,13 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
     const catQuery = !favorite && categoryId ? `&category=${categoryId}` : "";
 
     const res = await fetch(
-      `/api/videos?limit=${PAGE_SIZE}&offset=${offset}${catQuery}${tagsQuery}${favQuery}`
+      `/api/videos?includeTotal=1&limit=${PAGE_SIZE}&offset=${offset}${catQuery}${tagsQuery}${favQuery}`
     );
 
-    const data = await res.json();
+    const data: { videos: Video[]; total: number } = await res.json();
 
-    setVideos(data);
-
-    const isLastPage = data.length < PAGE_SIZE;
-    setTotalCount(
-      isLastPage ? (page - 1) * PAGE_SIZE + data.length : page * PAGE_SIZE + 1
-    );
+    setVideos(data.videos);
+    setTotalCount(data.total);
     setLoading(false);
   }, [page, selectedTags, categoryId, favorite]);
 
@@ -50,6 +76,13 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+      updateSearch(totalPages, selectedTags);
+    }
+  }, [page, selectedTags, totalPages, updateSearch]);
+
   return (
     <div>
       <TagsFilter
@@ -57,6 +90,7 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
         onChange={(tags) => {
           setPage(1);
           setSelectedTags(tags);
+          updateSearch(1, tags);
         }}
       />
 
@@ -92,7 +126,10 @@ const CategoryPage: React.FC<CategoryPageProps> = ({ favorite }) => {
           <Pagination
             count={totalPages}
             page={page}
-            onChange={(_, value) => setPage(value)}
+            onChange={(_, value) => {
+              setPage(value);
+              updateSearch(value, selectedTags);
+            }}
             siblingCount={0}
             boundaryCount={2}
           />

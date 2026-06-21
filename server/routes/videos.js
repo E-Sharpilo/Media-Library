@@ -21,54 +21,78 @@ const upload = multer({ storage });
 
 // query params: ?limit=30&offset=0&category=2&tags=1,5,7
 router.get("/", (req, res) => {
-  const { limit = 30, offset = 0, category, tags, favorite } = req.query;
+  const {
+    limit = 30,
+    offset = 0,
+    category,
+    tags,
+    favorite,
+    includeTotal,
+  } = req.query;
 
-  let sql = `
-    SELECT v.*,
+  let whereSql = `WHERE v.saved=1`;
+  const filterParams = [];
+
+  if (!favorite && category) {
+    whereSql += ` AND v.category_id = ?`;
+    filterParams.push(category);
+  }
+
+  if (tags) {
+    const tagIds = tags.split(",").map(Number);
+    tagIds.forEach((id) => {
+      whereSql += ` AND EXISTS (
+        SELECT 1 FROM video_tags vt WHERE vt.video_id = v.id AND vt.tag_id = ?
+      )`;
+      filterParams.push(id);
+    });
+  }
+
+  if (favorite === "1") {
+    whereSql += ` AND v.favorite = 1`;
+  }
+
+  const sql = `
+    SELECT
+      v.*,
       c.id AS category_id,
       c.display_name AS category_name,
       (SELECT json_group_array(actor_id) FROM video_actors WHERE video_id = v.id) AS actors,
       (SELECT json_group_array(tag_id) FROM video_tags WHERE video_id = v.id) AS tags
     FROM videos v
     LEFT JOIN categories c ON c.id = v.category_id
-    WHERE v.saved=1
+    ${whereSql}
+    ORDER BY date(v.release_date) DESC, v.id DESC
+    LIMIT ? OFFSET ?
   `;
 
-  const params = [];
-
-
-  if (!favorite && category) {
-    sql += ` AND v.category_id = ?`;
-    params.push(category);
-  }
-
-
-  if (tags) {
-    const tagIds = tags.split(",").map(Number);
-    tagIds.forEach((id) => {
-      sql += ` AND EXISTS (
-        SELECT 1 FROM video_tags vt WHERE vt.video_id = v.id AND vt.tag_id = ?
-      )`;
-      params.push(id);
-    });
-  }
-
-  if (favorite === "1") {
-    sql += ` AND v.favorite = 1`;
-  }
-
-  sql += ` LIMIT ? OFFSET ?`;
-  params.push(Number(limit), Number(offset));
+  const params = [...filterParams, Number(limit), Number(offset)];
 
   db.all(sql, params, (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    res.json(
-      rows.map((v) => ({
-        ...v,
-        actors: JSON.parse(v.actors || "[]"),
-        tags: JSON.parse(v.tags || "[]"),
-      }))
+    const videos = rows.map((v) => ({
+      ...v,
+      actors: JSON.parse(v.actors || "[]"),
+      tags: JSON.parse(v.tags || "[]"),
+    }));
+
+    if (includeTotal !== "1") {
+      res.json(videos);
+      return;
+    }
+
+    db.get(
+      `
+      SELECT COUNT(*) AS total
+      FROM videos v
+      ${whereSql}
+      `,
+      filterParams,
+      (err, countRow) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ videos, total: countRow.total });
+      }
     );
   });
 });

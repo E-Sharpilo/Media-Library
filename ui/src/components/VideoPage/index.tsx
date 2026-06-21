@@ -1,4 +1,5 @@
 import {
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -11,10 +12,8 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Video } from "../../types";
-
-type Actor = { id: number; name: string };
-type Tag = { id: number; name: string };
+import { Actor, Tag, Video } from "../../types";
+import ActorPicker, { ActorChip } from "../ActorPicker";
 
 const VideoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -109,6 +108,22 @@ const VideoPage: React.FC = () => {
     setActorsList((prev) => prev.filter((a) => a.id !== actorId));
   };
 
+  const updateActors = async (nextActors: Actor[]) => {
+    const currentIds = new Set(actorsList.map((actor) => actor.id));
+    const nextIds = new Set(nextActors.map((actor) => actor.id));
+
+    await Promise.all([
+      ...nextActors
+        .filter((actor) => !currentIds.has(actor.id))
+        .map((actor) => addActor(actor.id)),
+      ...actorsList
+        .filter((actor) => !nextIds.has(actor.id))
+        .map((actor) => removeActor(actor.id)),
+    ]);
+
+    setActorsList(nextActors);
+  };
+
   const addTag = async (tagId: number) => {
     await fetch(`/api/videos/${id}/tags`, {
       method: "POST",
@@ -122,6 +137,22 @@ const VideoPage: React.FC = () => {
   const removeTag = async (tagId: number) => {
     await fetch(`/api/videos/${id}/tags/${tagId}`, { method: "DELETE" });
     setTagsList((prev) => prev.filter((t) => t.id !== tagId));
+  };
+
+  const updateTags = async (nextTags: Tag[]) => {
+    const currentIds = new Set(tagsList.map((tag) => tag.id));
+    const nextIds = new Set(nextTags.map((tag) => tag.id));
+
+    await Promise.all([
+      ...nextTags
+        .filter((tag) => !currentIds.has(tag.id))
+        .map((tag) => addTag(tag.id)),
+      ...tagsList
+        .filter((tag) => !nextIds.has(tag.id))
+        .map((tag) => removeTag(tag.id)),
+    ]);
+
+    setTagsList(nextTags);
   };
 
   if (loading || !video) {
@@ -239,30 +270,21 @@ const VideoPage: React.FC = () => {
           {/* Actors */}
           <Box sx={{ mt: 1 }}>
             <Typography variant="subtitle2">Actors:</Typography>
-            {actorsList.map((actor) => (
-              <Chip
-                key={actor.id}
-                label={actor.name}
-                size="small"
-                onDelete={editMode ? () => removeActor(actor.id) : undefined}
-                sx={{ mr: 0.5, mt: 0.5 }}
-              />
-            ))}
+            {!editMode && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                {actorsList.map((actor) => (
+                  <ActorChip key={actor.id} actor={actor} />
+                ))}
+              </Box>
+            )}
             {editMode && (
-              <Box sx={{ mt: 0.5 }}>
-                {allActors
-                  .filter((a) => !actorsList.find((act) => act.id === a.id))
-                  .map((a) => (
-                    <Button
-                      key={a.id}
-                      size="small"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mt: 0.5 }}
-                      onClick={() => addActor(a.id)}
-                    >
-                      + {a.name}
-                    </Button>
-                  ))}
+              <Box sx={{ mt: 0.75 }}>
+                <ActorPicker
+                  label="Actors"
+                  options={allActors}
+                  value={actorsList}
+                  onChange={updateActors}
+                />
               </Box>
             )}
           </Box>
@@ -270,30 +292,31 @@ const VideoPage: React.FC = () => {
           {/* Tags */}
           <Box sx={{ mt: 1 }}>
             <Typography variant="subtitle2">Tags:</Typography>
-            {tagsList.map((tag) => (
-              <Chip
-                key={tag.id}
-                label={tag.name}
-                size="small"
-                onDelete={editMode ? () => removeTag(tag.id) : undefined}
-                sx={{ mr: 0.5, mt: 0.5 }}
-              />
-            ))}
+            {!editMode &&
+              tagsList.map((tag) => (
+                <Chip
+                  key={tag.id}
+                  label={tag.name}
+                  size="small"
+                  sx={{ mr: 0.5, mt: 0.5 }}
+                />
+              ))}
             {editMode && (
-              <Box sx={{ mt: 0.5 }}>
-                {allTags
-                  .filter((t) => !tagsList.find((tg) => tg.id === t.id))
-                  .map((t) => (
-                    <Button
-                      key={t.id}
-                      size="small"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mt: 0.5 }}
-                      onClick={() => addTag(t.id)}
-                    >
-                      + {t.name}
-                    </Button>
-                  ))}
+              <Box sx={{ mt: 0.75 }}>
+                <Autocomplete
+                  multiple
+                  disableCloseOnSelect
+                  options={allTags}
+                  value={tagsList}
+                  getOptionLabel={(tag) => tag.name}
+                  isOptionEqualToValue={(option, selected) =>
+                    option.id === selected.id
+                  }
+                  onChange={(_, tags) => updateTags(tags)}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Tags" size="small" />
+                  )}
+                />
               </Box>
             )}
           </Box>

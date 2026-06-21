@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { Actor, Tag, Video } from "../../types";
+import ActorPicker from "../ActorPicker";
 
 interface VideoCardProps {
   video: Video;
@@ -106,20 +107,17 @@ const NewVideoCard: React.FC<VideoCardProps> = ({
           />
 
           {/* 🎭 Actors */}
-          <Autocomplete
-            multiple
+          <ActorPicker
+            label="Actors"
             options={allActors}
             value={selectedActors}
-            getOptionLabel={(o) => o.name}
-            onChange={(_, v) => setSelectedActors(v)}
-            renderInput={(params) => (
-              <TextField {...params} label="Actors" size="small" />
-            )}
+            onChange={setSelectedActors}
           />
 
           {/* 🏷 Tags */}
           <Autocomplete
             multiple
+            disableCloseOnSelect
             options={allTags}
             value={selectedTags}
             getOptionLabel={(o) => o.name}

@@ -16,6 +16,8 @@
   object-fit: cover;
   border-radius: 8px;
   flex-shrink: 0;
+  background-color: #eeeeee;
+  display: block;
 }
 
 .actor-info {

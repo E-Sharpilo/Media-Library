@@ -1,5 +1,5 @@
 import { Box, CircularProgress } from "@mui/material";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Video } from "../../types";
 import TagsFilter from "../TagsFilter";
 import VideoCard from "../VideoCard";
@@ -17,61 +17,87 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
   const [hasMore, setHasMore] = useState(true);
 
   const offsetRef = useRef(0);
+  const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
   const observerRef = useRef<HTMLDivElement | null>(null);
 
-  const loadVideos = async (reset = false) => {
-    if (loading || (!hasMore && !reset)) return;
-    setLoading(true);
-
-    const params = new URLSearchParams();
-    params.append("limit", PAGE_SIZE.toString());
-    params.append("offset", reset ? "0" : offsetRef.current.toString());
-    if (categoryId) params.append("category", categoryId.toString());
-    if (selectedTags.length > 0) params.append("tags", selectedTags.join(","));
-
-    try {
-      const res = await fetch(`/api/videos?${params.toString()}`);
-      const data = await res.json();
-
-      if (!Array.isArray(data)) {
-        console.error("Expected array from API but got:", data);
-        setVideos([]);
-        setHasMore(false);
-        setLoading(false);
-        return;
-      }
-
-      setVideos((prev) => (reset ? data : [...prev, ...data]));
-      offsetRef.current = reset ? data.length : offsetRef.current + data.length;
-      setHasMore(data.length === PAGE_SIZE);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
 
   useEffect(() => {
-    const id = setTimeout(() => loadVideos(true), 250);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTags, categoryId]);
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  const loadVideos = useCallback(
+    async (reset = false) => {
+      if (loadingRef.current || (!hasMoreRef.current && !reset)) return;
+
+      loadingRef.current = true;
+      setLoading(true);
+
+      const params = new URLSearchParams();
+      params.append("limit", PAGE_SIZE.toString());
+      params.append("offset", reset ? "0" : offsetRef.current.toString());
+      if (categoryId) params.append("category", categoryId.toString());
+      if (selectedTags.length > 0)
+        params.append("tags", selectedTags.join(","));
+
+      try {
+        const res = await fetch(`/api/videos?${params.toString()}`);
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          console.error("Expected array from API but got:", data);
+          setVideos([]);
+          setHasMore(false);
+          return;
+        }
+
+        setVideos((prev) => (reset ? data : [...prev, ...data]));
+        offsetRef.current = reset
+          ? data.length
+          : offsetRef.current + data.length;
+        setHasMore(data.length === PAGE_SIZE);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        loadingRef.current = false;
+        setLoading(false);
+      }
+    },
+    [categoryId, selectedTags],
+  );
+
+  useEffect(() => {
+    offsetRef.current = 0;
+    setVideos([]);
+    setHasMore(true);
+
+    const id = window.setTimeout(() => {
+      void loadVideos(true);
+    }, 250);
+
+    return () => window.clearTimeout(id);
+  }, [categoryId, loadVideos, selectedTags]);
 
   // infinite scroll
   useEffect(() => {
-    if (!observerRef.current) return;
+    const target = observerRef.current;
+    if (!target || !hasMore || loading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) loadVideos();
+        if (entries[0]?.isIntersecting) {
+          void loadVideos();
+        }
       },
-      { rootMargin: "200px" }
+      { rootMargin: "200px" },
     );
 
-    observer.observe(observerRef.current);
+    observer.observe(target);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTags, categoryId]);
+  }, [categoryId, hasMore, loadVideos, loading, selectedTags]);
 
   return (
     <>
@@ -91,14 +117,11 @@ const VideosPage: React.FC<Props> = ({ categoryId }) => {
           "& > *": { minWidth: 0 },
         }}
       >
-        {videos.map((video, index) => {
-          const isLast = index === videos.length - 1;
-          return (
-            <div key={video.id} ref={isLast ? observerRef : null}>
-              <VideoCard video={video} />
-            </div>
-          );
-        })}
+        {videos.map((video) => (
+          <div key={video.id}>
+            <VideoCard video={video} />
+          </div>
+        ))}
       </Box>
 
       {hasMore && (

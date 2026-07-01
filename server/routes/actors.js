@@ -142,6 +142,7 @@ router.get("/:id", (req, res) => {
       LEFT JOIN categories c ON c.id = v.category_id
       WHERE va.actor_id = ?
         AND v.saved = 1
+      ORDER BY date(v.release_date) IS NULL ASC, date(v.release_date) DESC, v.id DESC
     `;
 
     db.all(sql, [id], (err, videos) => {
